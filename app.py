@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from elevenlabs import ElevenLabs
+from elevenlabs import generate, set_api_key
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Initialize clients
-elevenlabs = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
+set_api_key(os.getenv("ELEVENLABS_API_KEY"))
 openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Default voice ID (Mark - Natural Conversations)
@@ -34,7 +34,7 @@ def get_gpt_response(prompt, model="gpt-3.5-turbo"):
 def text_to_speech(text, voice_id=DEFAULT_VOICE_ID):
     """Convert text to speech using ElevenLabs"""
     try:
-        audio = elevenlabs.generate(
+        audio = generate(
             text=text,
             voice=voice_id,
             model="eleven_monolingual_v1"
