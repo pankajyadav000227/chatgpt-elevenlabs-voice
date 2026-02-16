@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
-from elevenlabs.t import ElevenLabs
+from elevenlabs import ElevenLabs
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
