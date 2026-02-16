@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT + ElevenLabs Voice Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .output {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            display: none;
+        }
+        .output.show {
+            display: block;
+        }
+        .response-label {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .response-text {
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        audio {
+            width: 100%;
+            margin-top: 15px;
+        }
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 ChatGPT Voice Generator</h1>
+        <p class="subtitle">ChatGPT responses + ElevenLabs Text-to-Speech</p>
+        
+        <div class="input-group">
+            <label for="userInput">Ask me anything...</label>
+            <textarea id="userInput" placeholder="Type your question here..." maxlength="2000"></textarea>
+            <small style="color: #999; margin-top: 5px;">Max 2000 characters</small>
+        </div>
+        
+        <button id="generateBtn" onclick="generate()">Generate Response & Audio</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px;">Generating response...</p>
+        </div>
+        
+        <div class="error" id="error"></div>
+        
+        <div class="output" id="output">
+            <div class="response-label">ChatGPT Response</div>
+            <div class="response-text" id="responseText"></div>
+            
+            <div class="response-label">Audio Playback</div>
+            <audio id="audioPlayer" controls></audio>
+            
+            <div class="stats" id="stats"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function generate() {
+            const userInput = document.getElementById('userInput').value.trim();
+            const generateBtn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const output = document.getElementById('output');
+            const error = document.getElementById('error');
+            
+            if (!userInput) {
+                error.textContent = 'Please enter a question!';
+                error.classList.add('show');
+                return;
+            }
+            
+            error.classList.remove('show');
+            generateBtn.disabled = true;
+            loading.classList.add('show');
+            output.classList.remove('show');
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: userInput })
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to generate');
+                }
+                
+                const data = await response.json();
+                document.getElementById('responseText').textContent = data.gpt_response;
+                
+                // Simulate audio for now (in production, serve actual audio)
+                const audioPlayer = document.getElementById('audioPlayer');
+                // Create a simple notification
+                document.getElementById('stats').innerHTML = `
+                    <strong>Stats:</strong><br>
+                    Characters: ${data.character_count}<br>
+                    Generated: ${new Date().toLocaleTimeString()}
+                `;
+                
+                output.classList.add('show');
+            } catch (err) {
+                error.textContent = `Error: ${err.message}`;
+                error.classList.add('show');
+            } finally {
+                generateBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+        
+        // Allow Enter to submit
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                generate();
+            }
+        });
+    </script>
+</body>
+</html>
